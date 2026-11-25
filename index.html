@@ -1,0 +1,2894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Pipeline Explorer</title>
+  <style>
+    /* Base design tokens and reset */
+    :root {
+      --bg-page: #f5f7fb;
+      --bg-card: #ffffff;
+      --bg-subtle: #eef2f9;
+      --border-color: #cbd5e1;
+      --border-strong: #64748b;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --accent: #2b44b8;
+      --accent-hover: #1e3396;
+      --accent-soft: #e6ecff;
+      --success: #146c43;
+      --success-soft: #e6f6ee;
+      --danger: #b42318;
+      --danger-soft: #fef3f2;
+      --focus-ring: #2b44b8;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.55;
+      color: var(--text-main);
+      background-color: var(--bg-page);
+    }
+
+    /* Visually hidden utility for screen-reader-only text */
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
+
+    /* High-contrast keyboard focus ring */
+    :where(button, input, summary, a):focus-visible {
+      outline: 3px solid var(--focus-ring);
+      outline-offset: 3px;
+    }
+
+    /* Page layout container */
+    .page-wrap {
+      max-inline-size: 980px;
+      margin-inline: auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    /* Header */
+    header {
+      margin-block-end: 1.5rem;
+    }
+
+    .badge-row {
+      display: inline-block;
+      margin-block-end: 0.5rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      background-color: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    h1 {
+      margin: 0 0 0.4rem;
+      font-size: clamp(1.75rem, 3.5vw, 2.35rem);
+      line-height: 1.2;
+      color: var(--text-main);
+    }
+
+    .subtitle {
+      margin: 0;
+      max-inline-size: 66ch;
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      margin-block-end: 1.25rem;
+    }
+
+    .card h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      line-height: 1.3;
+    }
+
+    .card h3 {
+      margin: 1rem 0 0.5rem;
+      font-size: 1.05rem;
+      line-height: 1.35;
+    }
+
+    /* Prompt form */
+    .prompt-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .field-label {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .field-hint {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--text-muted);
+    }
+
+    .input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: stretch;
+    }
+
+    .text-input {
+      flex: 1 1 260px;
+      font: inherit;
+      font-size: max(1rem, 1em);
+      min-block-size: 48px;
+      padding: 0.65rem 0.9rem;
+      color: var(--text-main);
+      background-color: #ffffff;
+      border: 2px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+    }
+
+    .text-input[aria-invalid="true"] {
+      border-color: var(--danger);
+      background-color: var(--danger-soft);
+    }
+
+    .error-text {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--danger);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      font: inherit;
+      font-size: max(1rem, 1em);
+      font-weight: 600;
+      min-block-size: 48px;
+      min-inline-size: 48px;
+      padding: 0.6rem 1.1rem;
+      border-radius: var(--radius-sm);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-subtle);
+      color: var(--text-main);
+      border-color: var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background-color: #e2e8f4;
+      border-color: var(--border-strong);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Preset prompt chips */
+    .preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-block-start: 0.25rem;
+    }
+
+    .preset-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .preset-btn {
+      font: inherit;
+      font-size: 0.9rem;
+      min-block-size: 40px;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--border-strong);
+      background-color: #ffffff;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .preset-btn:hover {
+      background-color: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Pipeline stepper bar */
+    .progress-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-block-end: 0.75rem;
+    }
+
+    .progress-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    progress {
+      inline-size: 140px;
+      block-size: 12px;
+      accent-color: var(--accent);
+    }
+
+    .stage-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.65rem;
+    }
+
+    .stage-btn {
+      inline-size: 100%;
+      min-block-size: 68px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.25rem;
+      padding: 0.7rem 0.8rem;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border-color);
+      background-color: var(--bg-card);
+      color: var(--text-main);
+      font: inherit;
+      text-align: start;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .stage-btn:hover {
+      border-color: var(--accent);
+      background-color: #f8faff;
+    }
+
+    .stage-btn[aria-current="step"] {
+      border-color: var(--accent);
+      background-color: var(--accent-soft);
+    }
+
+    .stage-btn.is-done {
+      border-color: var(--success);
+      background-color: var(--success-soft);
+    }
+
+    .stage-top-row {
+      inline-size: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .stage-btn[aria-current="step"] .stage-top-row {
+      color: var(--accent);
+    }
+
+    .stage-btn.is-done .stage-top-row {
+      color: var(--success);
+    }
+
+    .stage-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    /* Active stage panel */
+    .stage-panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      border-block-end: 1px solid var(--border-color);
+      padding-block-end: 0.75rem;
+      margin-block-end: 1rem;
+    }
+
+    .stage-kicker {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stage-summary {
+      margin: 0 0 1rem;
+      color: var(--text-muted);
+      max-inline-size: 72ch;
+    }
+
+    .visual-box {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      margin-block-end: 1rem;
+    }
+
+    /* Stage 1: Raw prompt display */
+    .raw-prompt-box {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 1.15rem;
+      padding: 0.85rem 1rem;
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      overflow-wrap: anywhere;
+    }
+
+    .stat-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-block-start: 0.85rem;
+    }
+
+    .stat-pill {
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.45rem 0.75rem;
+      font-size: 0.92rem;
+    }
+
+    /* Stage 2: Token chips */
+    .token-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    .token-chip {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+      min-block-size: 48px;
+      min-inline-size: 56px;
+      padding: 0.5rem 0.85rem;
+      border-radius: var(--radius-sm);
+      border: 2px solid hsl(var(--token-hue, 220) 60% 38%);
+      background-color: hsl(var(--token-hue, 220) 80% 91%);
+      color: var(--text-main);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .token-chip.is-subword {
+      border-style: dashed;
+    }
+
+    .token-chip[aria-pressed="true"] {
+      background-color: hsl(var(--token-hue, 220) 75% 84%);
+      box-shadow: 0 0 0 2px hsl(var(--token-hue, 220) 65% 35%);
+    }
+
+    .token-text {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .token-id {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .tokenize-section {
+      margin-block-start: 1.25rem;
+      padding-block-start: 1.1rem;
+      border-block-start: 1px solid var(--border-color);
+    }
+
+    .token-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.65rem;
+      margin-block: 0.9rem;
+    }
+
+    .token-stat-card {
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.65rem 0.85rem;
+    }
+
+    .token-stat-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .token-stat-value {
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .unknown-note {
+      margin-block: 0.9rem 0;
+      padding: 0.75rem 0.95rem;
+      background-color: #fffbeb;
+      border: 1px solid #d97706;
+      border-inline-start: 4px solid #b45309;
+      border-radius: var(--radius-sm);
+      color: #78350f;
+      font-size: 0.95rem;
+    }
+
+    .detail-note {
+      margin-block-start: 0.9rem;
+      padding: 0.75rem 0.9rem;
+      background-color: #ffffff;
+      border-inline-start: 4px solid var(--accent);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+    }
+
+    /* // WHAT THIS DOES: Keeps the vocabulary table a manageable height and lets you scroll through its rows. */
+    .vocabulary-table-scroll {
+      max-block-size: 20rem;
+      overflow: auto;
+      margin-block-start: 0.75rem;
+    }
+
+    .vocabulary-table-scroll thead {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+    }
+
+    .training-input {
+      display: block;
+      inline-size: 100%;
+      min-block-size: 9rem;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      color: var(--text-main);
+      font: inherit;
+      resize: vertical;
+    }
+
+    .vocabulary-size {
+      margin-block: 0.9rem 0;
+      font-weight: 700;
+    }
+
+    .vocab-slider-box {
+      margin-block: 0.9rem 0;
+    }
+
+    /* Stage 3: 3D Embedding Plot */
+    .embed-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-block-end: 1rem;
+    }
+
+    .mode-fieldset {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background-color: #ffffff;
+      padding: 0.65rem 0.9rem 0.75rem;
+      margin: 0;
+    }
+
+    .mode-fieldset legend {
+      font-weight: 700;
+      padding-inline: 0.35rem;
+      color: var(--text-main);
+    }
+
+    .mode-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-block-start: 0.25rem;
+    }
+
+    .mode-option {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-block-size: 40px;
+      cursor: pointer;
+    }
+
+    .mode-option input[type="radio"] {
+      inline-size: 1.15rem;
+      block-size: 1.15rem;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .progress-panel {
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-inline-start: 4px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.95rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .progress-panel progress {
+      inline-size: 100%;
+      block-size: 14px;
+    }
+
+    .plot-figure {
+      margin: 1rem 0;
+    }
+
+    .plot-box {
+      inline-size: 100%;
+      min-block-size: 460px;
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+      overflow: hidden;
+    }
+
+    .plot-figure figcaption {
+      margin-block-start: 0.5rem;
+    }
+
+    .closest-pairs-section {
+      margin-block: 1rem 1.15rem;
+    }
+
+    .closest-pairs-section h3 {
+      margin-block-start: 0;
+    }
+
+    /* Stage 3: Embeddings table */
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    .data-table {
+      inline-size: 100%;
+      border-collapse: collapse;
+      background-color: #ffffff;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      font-size: 0.95rem;
+    }
+
+    .data-table caption {
+      text-align: start;
+      font-weight: 700;
+      padding-block-end: 0.5rem;
+      color: var(--text-main);
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 0.6rem 0.75rem;
+      border-block-end: 1px solid var(--border-color);
+      text-align: start;
+    }
+
+    .data-table th {
+      background-color: #f8fafc;
+      font-weight: 700;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* Mini value bars (width driven by CSS custom property --bar-pct) */
+    .bar-track {
+      inline-size: 100%;
+      min-inline-size: 80px;
+      block-size: 10px;
+      background-color: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      block-size: 100%;
+      inline-size: var(--bar-pct, 0%);
+      background-color: var(--accent);
+      border-radius: 999px;
+      transition: inline-size 0.2s ease;
+    }
+
+    .bar-fill.is-top {
+      background-color: var(--success);
+    }
+
+    /* Stage 4: Attention weights */
+    .attention-list {
+      list-style: none;
+      margin: 0.85rem 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .attention-row {
+      display: grid;
+      grid-template-columns: minmax(90px, 140px) 1fr 56px;
+      align-items: center;
+      gap: 0.75rem;
+      background-color: #ffffff;
+      padding: 0.55rem 0.75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    /* Stage 5: Temperature slider & probabilities */
+    .temp-control {
+      background-color: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      margin-block-end: 1rem;
+    }
+
+    .temp-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-block-end: 0.4rem;
+    }
+
+    .range-input {
+      inline-size: 100%;
+      min-block-size: 36px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .temp-scale {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .prob-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .prob-row {
+      display: grid;
+      grid-template-columns: minmax(100px, 150px) 1fr 64px;
+      align-items: center;
+      gap: 0.75rem;
+      background-color: #ffffff;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    .prob-word {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+    }
+
+    /* Stage 6: Output card */
+    .output-preview {
+      background-color: #ffffff;
+      border: 2px solid var(--success);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      font-size: 1.2rem;
+      line-height: 1.6;
+      margin-block-end: 0.9rem;
+    }
+
+    .predicted-token {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      margin-inline-start: 0.25rem;
+      border-radius: 6px;
+      background-color: var(--success-soft);
+      color: var(--success);
+      font-weight: 800;
+      border: 1px solid var(--success);
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    /* Native details disclosure */
+    .teach-details {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background-color: #ffffff;
+      padding: 0.75rem 1rem;
+      margin-block-end: 1rem;
+    }
+
+    .teach-details summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--accent);
+      min-block-size: 32px;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .teach-details[open] summary {
+      margin-block-end: 0.5rem;
+    }
+
+    .teach-details p {
+      margin: 0;
+      color: var(--text-muted);
+    }
+
+    /* Stage navigation footer */
+    .stage-nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      padding-block-start: 0.5rem;
+    }
+
+    .stage-nav-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
+    /* Page footer */
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-block-start: 1.5rem;
+    }
+
+    /* Larger tap targets on touch screens */
+    @media (pointer: coarse) {
+      .btn,
+      .text-input,
+      .preset-btn,
+      .token-chip {
+        min-block-size: 52px;
+      }
+    }
+
+    /* Respect reduced-motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      .btn,
+      .stage-btn,
+      .bar-fill {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <header>
+      <span class="badge-row">Interactive Teaching Demo</span>
+      <h1>LLM Pipeline Explorer</h1>
+      <p class="subtitle">
+        See how a Large Language Model turns your text into a predicted next word — step by step,
+        using a tiny offline simulation right in your browser.
+      </p>
+    </header>
+
+    <main>
+      <!-- Prompt Input Section -->
+      <section class="card">
+        <h2>1. Enter a Prompt</h2>
+        <form id="prompt-form" class="prompt-form" novalidate>
+          <div class="field-group">
+            <label for="prompt-input" class="field-label">Your starting text</label>
+            <p id="prompt-hint" class="field-hint">
+              Type an unfinished sentence (for example, "The cat sat on the") and click Run Pipeline.
+            </p>
+            <div class="input-row">
+              <input
+                type="text"
+                id="prompt-input"
+                name="prompt"
+                class="text-input"
+                value="The cat sat on the"
+                maxlength="240"
+                required
+                enterkeyhint="go"
+                aria-describedby="prompt-hint prompt-error"
+              >
+              <button type="submit" class="btn btn-primary" id="run-btn">Run Pipeline</button>
+            </div>
+            <p id="prompt-error" class="error-text" hidden></p>
+          </div>
+
+          <div class="preset-row">
+            <span class="preset-label">Try an example:</span>
+            <button type="button" class="preset-btn" data-preset="The cat sat on the">The cat sat on the</button>
+            <button type="button" class="preset-btn" data-preset="AI models predict the next">AI models predict the next</button>
+            <button type="button" class="preset-btn" data-preset="Roses are red, violets are">Roses are red, violets are</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Pipeline Stage Selector -->
+      <section class="card">
+        <div class="progress-header">
+          <h2>2. Pipeline Stages</h2>
+          <div class="progress-meta">
+            <label for="stage-progress" id="progress-label">Stage 1 of 6</label>
+            <progress id="stage-progress" value="1" max="6"></progress>
+          </div>
+        </div>
+        <ol id="stage-list" class="stage-list" role="list"></ol>
+      </section>
+
+      <!-- Active Stage Explorer -->
+      <section class="card">
+        <div class="stage-panel-header">
+          <div>
+            <div id="stage-kicker" class="stage-kicker">Stage 1 of 6</div>
+            <h2 id="stage-title" tabindex="-1">Input Text</h2>
+          </div>
+        </div>
+
+        <p id="stage-summary" class="stage-summary"></p>
+
+        <div id="stage-visual" class="visual-box"></div>
+
+        <details id="stage-details" class="teach-details">
+          <summary>Why does this stage matter?</summary>
+          <p id="stage-why"></p>
+        </details>
+
+        <div class="stage-nav">
+          <div class="stage-nav-group">
+            <button type="button" id="prev-btn" class="btn btn-secondary">Previous Stage</button>
+            <button type="button" id="next-btn" class="btn btn-primary">Next Stage</button>
+          </div>
+          <button type="button" id="autoplay-btn" class="btn btn-secondary" aria-pressed="false">
+            Auto-Play All Stages
+          </button>
+        </div>
+      </section>
+
+      <!-- Single polite live region for screen-reader status announcements -->
+      <p id="live-status" class="visually-hidden" aria-live="polite" aria-atomic="true"></p>
+    </main>
+
+    <footer>
+      LLM Pipeline Explorer — runs 100% locally in one HTML file with no API keys or backend.
+    </footer>
+  </div>
+
+  <script src="https://cdn.plot.ly/plotly-4.3.0.min.js" charset="utf-8"></script>
+  <script>
+    // WHAT THIS DOES: Stores the teaching descriptions and "why it matters" notes for all 6 pipeline stages.
+    const STAGES = [
+      {
+        id: 1,
+        shortName: "Input Text",
+        title: "Stage 1: Raw Input Text",
+        summary: "Everything starts with the plain text you type. Right now, the computer only sees a string of characters — it does not understand meaning yet.",
+        why: "Before an LLM can predict anything, it needs a clear starting prompt. Even small wording changes here ripple through every stage that follows."
+      },
+      {
+        id: 2,
+        shortName: "Tokenization",
+        title: "Stage 2: Tokenization (Text to Pieces & IDs)",
+        summary: "Build a vocabulary from training sentences, then click Tokenize to see each token as a coloured chip (word on top, ID below). Unknown words are broken into single-letter pieces using ##.",
+        why: "Neural networks only do math on numbers, not letters. Breaking unknown words into smaller letter pieces lets the model handle any new word instead of giving up."
+      },
+      {
+        id: 3,
+        shortName: "Embeddings",
+        title: "Stage 3: Embeddings (Spelling vs. Meaning in 3D)",
+        summary: "Turn sentences into lists of numbers using either Spelling-based (64 numbers from 3-letter groups) or Meaning-based (Xenova/all-MiniLM-L6-v2 AI model), plot them in 3D, and inspect the 5 closest sentence pairs.",
+        why: "Spelling-based embeddings group words that share letters, while neural meaning-based embeddings place paraphrases like 'cat on the mat' and 'feline on the rug' close together."
+      },
+      {
+        id: 4,
+        shortName: "Self-Attention",
+        title: "Stage 4: Self-Attention (Connecting Context)",
+        summary: "Each token looks back at earlier tokens to figure out which words give it the most context. Click any token below to see what it pays attention to.",
+        why: "Words change meaning depending on neighbors. Attention lets 'sat' connect back to 'cat' so the model knows who is sitting."
+      },
+      {
+        id: 5,
+        shortName: "Probabilities",
+        title: "Stage 5: Next-Token Probabilities",
+        summary: "After processing context, the model scores every word in its vocabulary and turns the top scores into percentages. Drag the Temperature slider to see how creativity changes the odds.",
+        why: "An LLM does not look up one fixed answer — it predicts a probability distribution over many possible next tokens."
+      },
+      {
+        id: 6,
+        shortName: "Output Word",
+        title: "Stage 6: Picking & Appending the Next Token",
+        summary: "Finally, the model samples one word using those probabilities and adds it to the sentence. To write a whole paragraph, an LLM repeats Stages 1 to 6 over and over!",
+        why: "Sampling is why asking the same prompt twice can give slightly different answers — and why adding one word at a time builds full replies."
+      }
+    ];
+
+    // WHAT THIS DOES: Stores realistic sample next-word predictions for common phrases, plus a fallback list for any custom text you type.
+    const PREDICTION_RULES = [
+      {
+        matchEnd: "the cat sat on the",
+        candidates: [
+          { word: "mat", logit: 2.3 },
+          { word: "couch", logit: 1.5 },
+          { word: "floor", logit: 1.1 },
+          { word: "windowsill", logit: 0.6 },
+          { word: "moon", logit: -0.2 }
+        ]
+      },
+      {
+        matchEnd: "sat on the mat",
+        candidates: [
+          { word: "and", logit: 2.1 },
+          { word: "quietly", logit: 1.5 },
+          { word: "purring", logit: 1.1 },
+          { word: "today", logit: 0.5 },
+          { word: "forever", logit: -0.1 }
+        ]
+      },
+      {
+        matchEnd: "ai models predict the next",
+        candidates: [
+          { word: "token", logit: 2.3 },
+          { word: "word", logit: 1.9 },
+          { word: "step", logit: 1.0 },
+          { word: "sentence", logit: 0.6 },
+          { word: "banana", logit: -0.3 }
+        ]
+      },
+      {
+        matchEnd: "predict the next token",
+        candidates: [
+          { word: "using", logit: 2.1 },
+          { word: "based", logit: 1.6 },
+          { word: "from", logit: 1.1 },
+          { word: "quickly", logit: 0.5 },
+          { word: "silently", logit: -0.2 }
+        ]
+      },
+      {
+        matchEnd: "roses are red, violets are",
+        candidates: [
+          { word: "blue", logit: 2.6 },
+          { word: "purple", logit: 1.4 },
+          { word: "bright", logit: 0.9 },
+          { word: "blooming", logit: 0.4 },
+          { word: "coding", logit: -0.3 }
+        ]
+      },
+      {
+        matchEnd: "violets are blue",
+        candidates: [
+          { word: "and", logit: 2.0 },
+          { word: "sugar", logit: 1.7 },
+          { word: "today", logit: 0.9 },
+          { word: "forever", logit: 0.4 },
+          { word: "too", logit: 0.1 }
+        ]
+      }
+    ];
+
+    // WHAT THIS DOES: Provides a default list of next-word guesses for any custom sentence not in the list above.
+    const FALLBACK_CANDIDATES = [
+      { word: "next", logit: 2.0 },
+      { word: "idea", logit: 1.5 },
+      { word: "quickly", logit: 1.0 },
+      { word: "together", logit: 0.5 },
+      { word: "unexpectedly", logit: -0.2 }
+    ];
+
+    // WHAT THIS DOES: Provides six example sentences for building the small teaching vocabulary.
+    const DEFAULT_TRAINING_SENTENCES = [
+      "The cat sat on the mat.",
+      "A dog ran in the park.",
+      "Birds fly over the trees.",
+      "I like to read books.",
+      "We went to the beach.",
+      "The sun is bright today."
+    ].join("\n");
+
+    // WHAT THIS DOES: Provides six example sentences with both spelling-similar and meaning-similar pairs for comparing embedding modes.
+    const DEFAULT_EMBED_SENTENCES = [
+      "The cat sat on the mat.",
+      "A feline rested on the rug.",
+      "The cat sat on the hat.",
+      "A dog ran in the park.",
+      "A puppy sprinted through the garden.",
+      "I like to read books."
+    ].join("\n");
+
+    // WHAT THIS DOES: Keeps track of the prompt, training text, vocabulary, tokenized pieces, 3D plot state, selected stage, and other page settings.
+    const state = {
+      prompt: "The cat sat on the",
+      currentStage: 1,
+      tokens: [],
+      unknownWords: [],
+      trainingSentences: DEFAULT_TRAINING_SENTENCES,
+      fullVocabularyWords: [],
+      vocabLimit: 0,
+      vocabularyByToken: new Map(),
+      vocabularyRows: [{ id: 0, token: "[UNK]", count: 0 }],
+      vocabularyVisible: false,
+      tokenizedVisible: false,
+      embedSentences: DEFAULT_EMBED_SENTENCES,
+      embedMode: "spelling",
+      embedActiveMode: "spelling",
+      embedVectorDims: 64,
+      embedPoints: [],
+      embedClosestPairs: [],
+      embedErrorMessage: "",
+      embedFallbackMessage: "",
+      embedLoading: false,
+      embedPlotVisible: false,
+      meaningExtractor: null,
+      selectedTokenIndex: 0,
+      attentionFocusIndex: 0,
+      temperature: 0.8,
+      probabilities: [],
+      sampledWord: "",
+      statusNote: "",
+      autoPlayTimer: null
+    };
+
+    // WHAT THIS DOES: Grabs references to the HTML elements on the page so JavaScript can read and update them.
+    const promptForm = document.getElementById("prompt-form");
+    const promptInput = document.getElementById("prompt-input");
+    const promptError = document.getElementById("prompt-error");
+    const presetButtons = document.querySelectorAll(".preset-btn");
+    const stageListEl = document.getElementById("stage-list");
+    const stageProgressEl = document.getElementById("stage-progress");
+    const progressLabelEl = document.getElementById("progress-label");
+    const stageKickerEl = document.getElementById("stage-kicker");
+    const stageTitleEl = document.getElementById("stage-title");
+    const stageSummaryEl = document.getElementById("stage-summary");
+    const stageVisualEl = document.getElementById("stage-visual");
+    const stageWhyEl = document.getElementById("stage-why");
+    const stageDetailsEl = document.getElementById("stage-details");
+    const prevBtn = document.getElementById("prev-btn");
+    const nextBtn = document.getElementById("next-btn");
+    const autoplayBtn = document.getElementById("autoplay-btn");
+    const liveStatusEl = document.getElementById("live-status");
+
+    // WHAT THIS DOES: Announces short updates to screen readers using the single hidden live region.
+    function announce(message) {
+      liveStatusEl.textContent = "";
+      window.setTimeout(() => {
+        liveStatusEl.textContent = message;
+      }, 40);
+    }
+
+    // WHAT THIS DOES: Lowercases text, separates punctuation, and turns whitespace-separated pieces into tokens.
+    function splitIntoTokens(text) {
+      const normalizedText = text
+        .toLowerCase()
+        .replace(/([.,!?'])/g, " $1 ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return normalizedText ? normalizedText.split(" ") : [];
+    }
+
+    // WHAT THIS DOES: Counts each token and sorts the most frequent tokens first so we can keep the top N words.
+    function buildVocabularyFromText(text) {
+      const words = splitIntoTokens(text);
+      const counts = new Map();
+
+      words.forEach((word) => {
+        counts.set(word, (counts.get(word) || 0) + 1);
+      });
+
+      const sortedWords = [...counts.entries()]
+        .map(([token, count], firstSeen) => ({ token, count, firstSeen }))
+        .sort((first, second) => second.count - first.count || first.firstSeen - second.firstSeen);
+
+      return sortedWords;
+    }
+
+    // WHAT THIS DOES: Keeps only the top N most frequent words (plus [UNK] as ID 0) and rebuilds the active vocabulary lookup map and table rows.
+    function applyVocabularyLimit(limitCount) {
+      const total = state.fullVocabularyWords.length;
+      const clamped = Math.max(0, Math.min(total, limitCount));
+      state.vocabLimit = clamped;
+
+      const vocabularyByToken = new Map();
+      const vocabularyRows = [{ id: 0, token: "[UNK]", count: 0 }];
+
+      state.fullVocabularyWords.slice(0, clamped).forEach((entry, index) => {
+        const id = index + 1;
+        vocabularyByToken.set(entry.token, id);
+        vocabularyRows.push({ id, token: entry.token, count: entry.count });
+      });
+
+      state.vocabularyByToken = vocabularyByToken;
+      state.vocabularyRows = vocabularyRows;
+    }
+
+    // WHAT THIS DOES: Turns any token ID into a colour hue (0 to 359) so the same word or piece always gets the exact same colour.
+    function getHueFromId(id) {
+      return (id * 137) % 360;
+    }
+
+    // WHAT THIS DOES: Gives a consistent ID number to a single-letter piece (like "z" or "##e") when an unknown word is split apart.
+    function getSubwordId(piece) {
+      if (state.vocabularyByToken.has(piece)) {
+        return state.vocabularyByToken.get(piece);
+      }
+
+      const isContinuation = piece.startsWith("##");
+      const rawChar = isContinuation ? piece.slice(2) : piece;
+      const code = rawChar.codePointAt(0) || 0;
+
+      // Letters a-z get IDs 1001-1026; continuation letters ##a-##z get IDs 2001-2026
+      if (code >= 97 && code <= 122) {
+        return (isContinuation ? 2001 : 1001) + (code - 97);
+      }
+
+      // Digits or other symbols get a repeatable fallback ID
+      return (isContinuation ? 4000 : 3000) + (code % 900);
+    }
+
+    // WHAT THIS DOES: Looks up each word in the vocabulary; if a word is unknown, splits it into single letters (first normal, rest with "##").
+    function tokenizePrompt(text) {
+      const pieces = splitIntoTokens(text);
+      const tokens = [];
+      const unknownWords = [];
+
+      pieces.forEach((piece) => {
+        if (state.vocabularyByToken.has(piece)) {
+          const id = state.vocabularyByToken.get(piece);
+          tokens.push({
+            index: tokens.length,
+            text: piece,
+            id: id,
+            hue: getHueFromId(id),
+            isSubword: false,
+            sourceWord: piece
+          });
+        } else {
+          // Unknown word: split into single letters, first normal and the rest prefixed with "##"
+          const letters = Array.from(piece);
+          const subwordTexts = [];
+
+          letters.forEach((letter, letterIndex) => {
+            const subword = letterIndex === 0 ? letter : "##" + letter;
+            const id = getSubwordId(subword);
+            subwordTexts.push(subword);
+            tokens.push({
+              index: tokens.length,
+              text: subword,
+              id: id,
+              hue: getHueFromId(id),
+              isSubword: true,
+              sourceWord: piece
+            });
+          });
+
+          unknownWords.push({
+            word: piece,
+            pieces: subwordTexts
+          });
+        }
+      });
+
+      return { tokens, unknownWords };
+    }
+
+    // WHAT THIS DOES: Updates the saved tokens and unknown-word list from a given sentence.
+    function applyTokenization(text) {
+      const result = tokenizePrompt(text);
+      state.tokens = result.tokens;
+      state.unknownWords = result.unknownWords;
+      state.selectedTokenIndex = 0;
+      state.attentionFocusIndex = Math.max(0, state.tokens.length - 1);
+    }
+
+    // WHAT THIS DOES: Builds the starting vocabulary from the 6 default training sentences when the page loads.
+    state.fullVocabularyWords = buildVocabularyFromText(DEFAULT_TRAINING_SENTENCES);
+    applyVocabularyLimit(state.fullVocabularyWords.length);
+
+    // WHAT THIS DOES: Turns one sentence into 64 spelling-based numbers by counting every 3-letter group into 64 hash buckets and scaling the list to length 1.
+    function embedSentenceSpelling(sentence) {
+      const counts = new Array(64).fill(0);
+      const lower = sentence.toLowerCase();
+      // Keep letters so we take every group of 3 letters in a row (fall back to trimmed text if fewer than 3 letters)
+      const lettersOnly = lower.replace(/[^a-z]/g, "");
+      const source = lettersOnly.length >= 3 ? lettersOnly : lower.trim();
+
+      if (source.length >= 3) {
+        for (let i = 0; i <= source.length - 3; i++) {
+          const group = source.slice(i, i + 3);
+          const bucket =
+            (group.charCodeAt(0) * 31 + group.charCodeAt(1) * 17 + group.charCodeAt(2)) % 64;
+          counts[bucket] += 1;
+        }
+      } else if (source.length > 0) {
+        let bucket = 0;
+        for (let i = 0; i < source.length; i++) {
+          bucket = (bucket * 31 + source.charCodeAt(i)) % 64;
+        }
+        counts[bucket] += 1;
+      }
+
+      // Scale the 64 numbers so the list has total length (Euclidean norm) equal to 1
+      let sumOfSquares = 0;
+      for (let i = 0; i < counts.length; i++) {
+        sumOfSquares += counts[i] * counts[i];
+      }
+      const vectorLength = Math.sqrt(sumOfSquares);
+      if (vectorLength > 0) {
+        for (let i = 0; i < counts.length; i++) {
+          counts[i] = counts[i] / vectorLength;
+        }
+      }
+
+      return counts;
+    }
+
+    // WHAT THIS DOES: Calculates cosine similarity between two full-length number lists (1.000 = identical direction, 0.000 = unrelated).
+    function cosineSimilarity(vecA, vecB) {
+      let dot = 0;
+      let normA = 0;
+      let normB = 0;
+      for (let i = 0; i < vecA.length; i++) {
+        dot += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+      }
+      const denom = Math.sqrt(normA) * Math.sqrt(normB);
+      return denom > 0 ? dot / denom : 0;
+    }
+
+    // WHAT THIS DOES: Compares every pair of sentences using cosine similarity on their full number lists and returns the top 5 closest pairs.
+    function findClosestPairs(sentences, vectors) {
+      const pairs = [];
+      for (let i = 0; i < sentences.length; i++) {
+        for (let j = i + 1; j < sentences.length; j++) {
+          pairs.push({
+            sentenceA: sentences[i],
+            sentenceB: sentences[j],
+            score: cosineSimilarity(vectors[i], vectors[j])
+          });
+        }
+      }
+      pairs.sort((a, b) => b.score - a.score);
+      return pairs.slice(0, 5);
+    }
+
+    // WHAT THIS DOES: Loads Transformers.js from the jsDelivr CDN and downloads Xenova/all-MiniLM-L6-v2 while showing download progress.
+    async function loadMeaningExtractor(onProgress) {
+      if (state.meaningExtractor) {
+        return state.meaningExtractor;
+      }
+
+      if (window.location.protocol === "file:") {
+        throw new Error("Page is opened via file:// instead of http://");
+      }
+
+      onProgress("Loading Transformers.js from jsDelivr...", 5);
+      const transformers = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3");
+
+      const extractor = await transformers.pipeline(
+        "feature-extraction",
+        "Xenova/all-MiniLM-L6-v2",
+        {
+          progress_callback: (info) => {
+            if (info.status === "progress" && typeof info.progress === "number") {
+              const pct = Math.max(0, Math.min(100, Math.round(info.progress)));
+              const fileName = info.file || "model files";
+              onProgress("Downloading " + fileName + ": " + pct + "%", pct);
+            } else if (info.status === "initiate") {
+              onProgress("Starting download: " + (info.file || "model"), 10);
+            } else if (info.status === "done") {
+              onProgress("Finished downloading: " + (info.file || "file"), 95);
+            } else if (info.status === "ready") {
+              onProgress("Model loaded! Computing meaning embeddings...", 100);
+            }
+          }
+        }
+      );
+
+      state.meaningExtractor = extractor;
+      return extractor;
+    }
+
+    // WHAT THIS DOES: Uses Xenova/all-MiniLM-L6-v2 (feature-extraction, mean pooling, normalize true) to embed each sentence by meaning.
+    async function embedSentencesMeaning(sentences, onProgress) {
+      const extractor = await loadMeaningExtractor(onProgress);
+      const vectors = [];
+
+      for (let i = 0; i < sentences.length; i++) {
+        const pct = Math.round(((i + 1) / sentences.length) * 100);
+        onProgress("Embedding sentence " + (i + 1) + " of " + sentences.length + "...", pct);
+        const output = await extractor(sentences[i], {
+          pooling: "mean",
+          normalize: true
+        });
+        vectors.push(Array.from(output.data));
+      }
+
+      return vectors;
+    }
+
+    // WHAT THIS DOES: Reduces any list of equal-length vectors (64-D spelling or 384-D meaning) down to 3 numbers (x, y, z) using plain JavaScript PCA.
+    function reduceVectorsTo3D(vectors) {
+      const count = vectors.length;
+      const dims = vectors[0] ? vectors[0].length : 0;
+
+      // Step 1: Find the average value for each position
+      const mean = new Array(dims).fill(0);
+      for (let s = 0; s < count; s++) {
+        for (let d = 0; d < dims; d++) {
+          mean[d] += vectors[s][d] / count;
+        }
+      }
+
+      // Step 2: Subtract the average so the cloud of sentences is centered around (0, 0, 0)
+      const centered = vectors.map((vec) => vec.map((val, d) => val - mean[d]));
+
+      // Step 3: Find 3 perpendicular spread directions (x, y, z) one at a time
+      const axesCoords = [[], [], []];
+      for (let axis = 0; axis < 3; axis++) {
+        // Start with a repeatable guess direction of length 1
+        const dir = new Array(dims);
+        let dirNorm = 0;
+        for (let d = 0; d < dims; d++) {
+          dir[d] = Math.sin((axis + 1) * (d + 1) * 1.3);
+          dirNorm += dir[d] * dir[d];
+        }
+        dirNorm = Math.sqrt(dirNorm) || 1;
+        for (let d = 0; d < dims; d++) {
+          dir[d] /= dirNorm;
+        }
+
+        // Repeat 25 times so dir points along the strongest remaining spread
+        for (let step = 0; step < 25; step++) {
+          const nextDir = new Array(dims).fill(0);
+          for (let s = 0; s < count; s++) {
+            let dot = 0;
+            for (let d = 0; d < dims; d++) {
+              dot += centered[s][d] * dir[d];
+            }
+            for (let d = 0; d < dims; d++) {
+              nextDir[d] += dot * centered[s][d];
+            }
+          }
+
+          let nextNorm = 0;
+          for (let d = 0; d < dims; d++) {
+            nextNorm += nextDir[d] * nextDir[d];
+          }
+          nextNorm = Math.sqrt(nextNorm);
+          if (nextNorm < 1e-10) {
+            break;
+          }
+          for (let d = 0; d < dims; d++) {
+            dir[d] = nextDir[d] / nextNorm;
+          }
+        }
+
+        // Project each sentence onto this axis and remove it before finding the next axis
+        for (let s = 0; s < count; s++) {
+          let coord = 0;
+          for (let d = 0; d < dims; d++) {
+            coord += centered[s][d] * dir[d];
+          }
+          axesCoords[axis].push(coord);
+          for (let d = 0; d < dims; d++) {
+            centered[s][d] -= coord * dir[d];
+          }
+        }
+      }
+
+      return vectors.map((_, s) => ({
+        x: Number(axesCoords[0][s].toFixed(3)),
+        y: Number(axesCoords[1][s].toFixed(3)),
+        z: Number(axesCoords[2][s].toFixed(3))
+      }));
+    }
+
+    // WHAT THIS DOES: Escapes HTML special characters in sentence text before passing labels and hover tooltips to Plotly.
+    function escapePlotlyText(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    // WHAT THIS DOES: Creates a short, readable label to display next to each dot in the 3D chart.
+    function makeShortLabel(sentence, index) {
+      const trimmed = sentence.trim();
+      const shortText = trimmed.length > 26 ? trimmed.slice(0, 23).trimEnd() + "..." : trimmed;
+      return (index + 1) + ". " + shortText;
+    }
+
+    // WHAT THIS DOES: Draws the interactive 3D scatter chart using Plotly.js (one dot per sentence, short label beside it, full sentence on hover).
+    function drawEmbedding3DChart(container, points, modeName) {
+      if (typeof window.Plotly === "undefined") {
+        const fallbackMsg = document.createElement("p");
+        fallbackMsg.className = "error-text";
+        fallbackMsg.textContent = "Could not load Plotly.js from cdn.plot.ly. Check your internet connection and reload, or open the tables below.";
+        container.replaceChildren(fallbackMsg);
+        return;
+      }
+
+      container.replaceChildren();
+
+      const dotColors = points.map((_, idx) => "hsl(" + ((idx * 55 + 215) % 360) + ", 72%, 44%)");
+      const chartTitle = modeName === "meaning"
+        ? "Meaning-Based Sentence Embeddings (3D — all-MiniLM-L6-v2)"
+        : "Spelling-Based Sentence Embeddings (3D — 3-letter groups)";
+
+      const trace = {
+        type: "scatter3d",
+        mode: "markers+text",
+        x: points.map((p) => p.x),
+        y: points.map((p) => p.y),
+        z: points.map((p) => p.z),
+        text: points.map((p) => escapePlotlyText(p.shortLabel)),
+        textposition: "top center",
+        textfont: {
+          size: 12,
+          color: "#0f172a"
+        },
+        customdata: points.map((p) => escapePlotlyText(p.sentence)),
+        hovertemplate: "<b>%{customdata}</b><br>x: %{x:.3f}, y: %{y:.3f}, z: %{z:.3f}<extra></extra>",
+        marker: {
+          size: 8,
+          color: dotColors,
+          line: {
+            color: "#ffffff",
+            width: 1.5
+          }
+        }
+      };
+
+      const layout = {
+        margin: { l: 0, r: 0, t: 40, b: 0 },
+        title: {
+          text: chartTitle,
+          font: { size: 15, color: "#0f172a" }
+        },
+        scene: {
+          xaxis: { title: "X (Axis 1)" },
+          yaxis: { title: "Y (Axis 2)" },
+          zaxis: { title: "Z (Axis 3)" },
+          bgcolor: "#ffffff"
+        },
+        paper_bgcolor: "#ffffff"
+      };
+
+      window.Plotly.newPlot(container, [trace], layout, { responsive: true });
+    }
+
+    // WHAT THIS DOES: Turns each token into a pretend 4-number embedding vector so you can see how text becomes numbers.
+    function getEmbeddingForToken(token) {
+      const lower = token.text.toLowerCase();
+      // Simple beginner-friendly heuristics so values feel meaningful
+      const isAction = /^(sat|run|runs|predict|predicts|is|are|was|were|go|think|write|learn)/.test(lower);
+      const isConnector = /^(the|a|an|on|in|to|of|and|for|with|,|\.)$/.test(lower);
+      const isThing = !isAction && !isConnector;
+
+      const seed = token.id;
+      const noise = (offset) => ((seed + offset * 37) % 25) / 100;
+
+      const entityScore = isThing ? 0.72 + noise(1) : 0.18 + noise(1);
+      const actionScore = isAction ? 0.75 + noise(2) : 0.15 + noise(2);
+      const grammarScore = isConnector ? 0.78 + noise(3) : 0.25 + noise(3);
+      const moodScore = 0.3 + ((seed % 60) / 100);
+
+      return [
+        Math.min(0.99, Number(entityScore.toFixed(2))),
+        Math.min(0.99, Number(actionScore.toFixed(2))),
+        Math.min(0.99, Number(grammarScore.toFixed(2))),
+        Math.min(0.99, Number(moodScore.toFixed(2)))
+      ];
+    }
+
+    // WHAT THIS DOES: Calculates simple attention percentages showing which earlier tokens a chosen token focuses on most.
+    function getAttentionWeights(tokens, focusIndex) {
+      const visibleTokens = tokens.slice(0, focusIndex + 1);
+      const rawScores = visibleTokens.map((tok, i) => {
+        const lower = tok.text.toLowerCase();
+        const isSmallWord = /^(the|a|an|on|in|of|,|\.)$/.test(lower);
+        const recencyBoost = (i + 1) / visibleTokens.length;
+        const meaningBoost = isSmallWord ? 0.55 : 1.35;
+        const selfBoost = i === focusIndex ? 0.9 : 1.0;
+        return recencyBoost * meaningBoost * selfBoost;
+      });
+
+      const total = rawScores.reduce((sum, val) => sum + val, 0) || 1;
+      return visibleTokens.map((tok, i) => ({
+        token: tok,
+        percent: Math.round((rawScores[i] / total) * 100)
+      }));
+    }
+
+    // WHAT THIS DOES: Finds candidate next words for your prompt and uses the Temperature slider (softmax math) to compute their percentages.
+    function computeNextWordProbabilities(promptText, temperature) {
+      const normalized = promptText.trim().toLowerCase().replace(/\s+/g, " ");
+      let candidates = FALLBACK_CANDIDATES;
+
+      for (const rule of PREDICTION_RULES) {
+        if (normalized.endsWith(rule.matchEnd)) {
+          candidates = rule.candidates;
+          break;
+        }
+      }
+
+      // Apply softmax with temperature: lower temperature makes top word much more likely
+      const scaled = candidates.map((item) => item.logit / temperature);
+      const maxScaled = Math.max(...scaled);
+      const expValues = scaled.map((val) => Math.exp(val - maxScaled));
+      const expSum = expValues.reduce((sum, val) => sum + val, 0);
+
+      return candidates.map((item, i) => ({
+        word: item.word,
+        probability: expValues[i] / expSum,
+        percent: Math.round((expValues[i] / expSum) * 100)
+      }));
+    }
+
+    // WHAT THIS DOES: Randomly picks one next word based on the probability percentages (higher percentage = picked more often).
+    function sampleNextWord(probabilities) {
+      const roll = Math.random();
+      let cumulative = 0;
+      for (const item of probabilities) {
+        cumulative += item.probability;
+        if (roll <= cumulative) {
+          return item.word;
+        }
+      }
+      return probabilities[0].word;
+    }
+
+    // WHAT THIS DOES: Draws the 6 clickable pipeline stage buttons and updates the progress bar.
+    function renderStageButtons() {
+      stageListEl.replaceChildren();
+
+      STAGES.forEach((stage) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "stage-btn";
+
+        const isCurrent = stage.id === state.currentStage;
+        const isDone = stage.id < state.currentStage;
+
+        if (isCurrent) {
+          btn.setAttribute("aria-current", "step");
+        }
+        if (isDone) {
+          btn.classList.add("is-done");
+        }
+
+        const topRow = document.createElement("span");
+        topRow.className = "stage-top-row";
+
+        const stepNum = document.createElement("span");
+        stepNum.textContent = "Step " + stage.id;
+
+        const statusBadge = document.createElement("span");
+        statusBadge.textContent = isCurrent ? "Active" : isDone ? "Done" : "Next";
+
+        topRow.append(stepNum, statusBadge);
+
+        const nameEl = document.createElement("span");
+        nameEl.className = "stage-name";
+        nameEl.textContent = stage.shortName;
+
+        btn.append(topRow, nameEl);
+        btn.addEventListener("click", () => {
+          stopAutoPlay();
+          goToStage(stage.id, true);
+        });
+
+        li.appendChild(btn);
+        stageListEl.appendChild(li);
+      });
+
+      stageProgressEl.value = state.currentStage;
+      progressLabelEl.textContent = "Stage " + state.currentStage + " of " + STAGES.length;
+    }
+
+    // WHAT THIS DOES: Draws Stage 1 (Input Text), showing the raw string and character/word counts.
+    function renderStage1() {
+      const box = document.createElement("div");
+
+      const promptDisplay = document.createElement("div");
+      promptDisplay.className = "raw-prompt-box";
+      promptDisplay.textContent = '"' + state.prompt + '"';
+
+      const stats = document.createElement("div");
+      stats.className = "stat-row";
+
+      const charPill = document.createElement("span");
+      charPill.className = "stat-pill";
+      charPill.textContent = "Characters: " + state.prompt.length;
+
+      const tokenPill = document.createElement("span");
+      tokenPill.className = "stat-pill";
+      tokenPill.textContent = "Tokens waiting to be split: " + state.tokens.length;
+
+      stats.append(charPill, tokenPill);
+      box.append(promptDisplay, stats);
+      stageVisualEl.appendChild(box);
+    }
+
+    // WHAT THIS DOES: Draws a scrollable table of vocabulary IDs, tokens, and occurrence counts.
+    function renderVocabularyTable() {
+      const results = document.createElement("section");
+      results.setAttribute("aria-label", "Built vocabulary");
+
+      const size = document.createElement("p");
+      size.className = "vocabulary-size";
+      size.textContent = "Vocabulary size: " + state.vocabularyRows.length + " tokens (including [UNK]).";
+      results.appendChild(size);
+
+      const scrollWrap = document.createElement("div");
+      scrollWrap.className = "table-scroll vocabulary-table-scroll";
+
+      const table = document.createElement("table");
+      table.className = "data-table";
+
+      const caption = document.createElement("caption");
+      caption.textContent = "Tokens sorted by frequency, most frequent first.";
+      table.appendChild(caption);
+
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+      ["ID", "Token", "Count"].forEach((label) => {
+        const heading = document.createElement("th");
+        heading.scope = "col";
+        heading.textContent = label;
+        headerRow.appendChild(heading);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      state.vocabularyRows.forEach((entry) => {
+        const row = document.createElement("tr");
+        [entry.id, entry.token, entry.count].forEach((value) => {
+          const cell = document.createElement("td");
+          cell.textContent = String(value);
+          row.appendChild(cell);
+        });
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      scrollWrap.appendChild(table);
+      results.appendChild(scrollWrap);
+      return results;
+    }
+
+    // WHAT THIS DOES: Draws the character count, token count, and characters-per-token summary cards.
+    function renderTokenStats() {
+      const charCount = state.prompt.length;
+      const tokenCount = state.tokens.length;
+      const charsPerToken = tokenCount > 0 ? (charCount / tokenCount).toFixed(2) : "0.00";
+
+      const statsGrid = document.createElement("div");
+      statsGrid.className = "token-stats-grid";
+
+      const items = [
+        { label: "Number of characters", value: String(charCount) },
+        { label: "Number of tokens", value: String(tokenCount) },
+        { label: "Characters per token", value: charsPerToken }
+      ];
+
+      items.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "token-stat-card";
+
+        const labelEl = document.createElement("span");
+        labelEl.className = "token-stat-label";
+        labelEl.textContent = item.label;
+
+        const valueEl = document.createElement("span");
+        valueEl.className = "token-stat-value";
+        valueEl.textContent = item.value;
+
+        card.append(labelEl, valueEl);
+        statsGrid.appendChild(card);
+      });
+
+      return statsGrid;
+    }
+
+    // WHAT THIS DOES: Draws the tokenized stats, coloured token chips, unknown-word note, and selected-token details inside a container so live slider drags can refresh them smoothly.
+    function renderTokenizeOutput(container) {
+      container.replaceChildren();
+
+      if (!state.tokenizedVisible) {
+        const waitingNote = document.createElement("p");
+        waitingNote.className = "detail-note";
+        waitingNote.textContent = 'Click "Tokenize" to see each token as a coloured chip (word on top, ID below) along with character and token counts.';
+        container.appendChild(waitingNote);
+        return;
+      }
+
+      container.appendChild(renderTokenStats());
+
+      const list = document.createElement("ol");
+      list.className = "token-list";
+      list.setAttribute("role", "list");
+
+      state.tokens.forEach((tok, idx) => {
+        const li = document.createElement("li");
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "token-chip" + (tok.isSubword ? " is-subword" : "");
+        chip.style.setProperty("--token-hue", String(tok.hue));
+        chip.setAttribute("aria-pressed", String(idx === state.selectedTokenIndex));
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "token-text";
+        textSpan.textContent = tok.text;
+
+        const idSpan = document.createElement("span");
+        idSpan.className = "token-id";
+        idSpan.textContent = "ID " + tok.id;
+
+        chip.append(textSpan, idSpan);
+        chip.addEventListener("click", () => {
+          state.selectedTokenIndex = idx;
+          renderTokenizeOutput(container);
+          const refreshedChips = container.querySelectorAll(".token-chip");
+          if (refreshedChips[idx]) refreshedChips[idx].focus();
+        });
+
+        li.appendChild(chip);
+        list.appendChild(li);
+      });
+
+      container.appendChild(list);
+
+      if (state.unknownWords.length > 0) {
+        const unknownNote = document.createElement("p");
+        unknownNote.className = "unknown-note";
+        const splitSummary = state.unknownWords
+          .map((item) => '"' + item.word + '" -> ' + item.pieces.join(" "))
+          .join(", ");
+        unknownNote.textContent =
+          "Note: unknown words are broken into smaller pieces (" + splitSummary + ").";
+        container.appendChild(unknownNote);
+      }
+
+      const activeTok = state.tokens[state.selectedTokenIndex] || state.tokens[0];
+      if (activeTok) {
+        const note = document.createElement("p");
+        note.className = "detail-note";
+        note.textContent = activeTok.isSubword
+          ? 'Selected token ' + (activeTok.index + 1) + ' of ' + state.tokens.length +
+            ': "' + activeTok.text + '" is a subword piece from unknown word "' + activeTok.sourceWord +
+            '" (ID ' + activeTok.id + '). Same ID always gets the same colour.'
+          : 'Selected token ' + (activeTok.index + 1) + ' of ' + state.tokens.length +
+            ': "' + activeTok.text + '" matched the vocabulary with ID ' + activeTok.id +
+            '. Same ID always gets the same colour.';
+        container.appendChild(note);
+      }
+    }
+
+    // WHAT THIS DOES: Lets you build and trim the vocabulary with a live slider, then click Tokenize to see coloured token chips, IDs, unknown-word splits, and stats.
+    function renderStage2() {
+      const trainingLabel = document.createElement("label");
+      trainingLabel.className = "field-label";
+      trainingLabel.htmlFor = "training-sentences";
+      trainingLabel.textContent = "Training sentences (one per line)";
+
+      const trainingInput = document.createElement("textarea");
+      trainingInput.id = "training-sentences";
+      trainingInput.className = "training-input";
+      trainingInput.rows = 6;
+      trainingInput.value = state.trainingSentences;
+      trainingInput.setAttribute("aria-describedby", "training-sentences-hint");
+      trainingInput.addEventListener("input", () => {
+        state.trainingSentences = trainingInput.value;
+      });
+
+      const trainingHint = document.createElement("p");
+      trainingHint.id = "training-sentences-hint";
+      trainingHint.className = "field-hint";
+      trainingHint.textContent = "Words are lowercase. Each period, comma, exclamation mark, question mark, or apostrophe becomes its own token.";
+
+      const buildButton = document.createElement("button");
+      buildButton.type = "button";
+      buildButton.id = "build-vocab-btn";
+      buildButton.className = "btn btn-secondary";
+      buildButton.textContent = "Build vocabulary";
+      buildButton.addEventListener("click", () => {
+        state.trainingSentences = trainingInput.value;
+        state.fullVocabularyWords = buildVocabularyFromText(state.trainingSentences);
+        applyVocabularyLimit(state.fullVocabularyWords.length);
+        state.vocabularyVisible = true;
+        applyTokenization(state.prompt);
+        renderActiveStage(false);
+        const refreshedBuildBtn = document.getElementById("build-vocab-btn");
+        if (refreshedBuildBtn) refreshedBuildBtn.focus();
+        announce(
+          "Vocabulary built. Keeping " + state.vocabLimit + " of " + state.fullVocabularyWords.length + " words."
+        );
+      });
+
+      stageVisualEl.append(trainingLabel, trainingInput, trainingHint, buildButton);
+
+      // Containers updated in place when dragging the "Words kept" slider
+      const vocabTableContainer = document.createElement("div");
+      vocabTableContainer.id = "vocab-table-container";
+
+      const tokenizeOutputContainer = document.createElement("div");
+      tokenizeOutputContainer.id = "tokenize-output-container";
+
+      if (state.vocabularyVisible) {
+        const totalWords = state.fullVocabularyWords.length;
+
+        const sliderBox = document.createElement("div");
+        sliderBox.className = "temp-control vocab-slider-box";
+
+        const sliderHeader = document.createElement("div");
+        sliderHeader.className = "temp-header";
+
+        const sliderLabel = document.createElement("label");
+        sliderLabel.id = "vocab-limit-label";
+        sliderLabel.htmlFor = "vocab-limit-slider";
+        sliderLabel.className = "field-label";
+        sliderLabel.textContent = "Words kept: " + state.vocabLimit + " of " + totalWords;
+
+        sliderHeader.appendChild(sliderLabel);
+
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.id = "vocab-limit-slider";
+        slider.className = "range-input";
+        slider.min = totalWords > 0 ? "1" : "0";
+        slider.max = String(totalWords);
+        slider.step = "1";
+        slider.value = String(state.vocabLimit);
+        slider.disabled = totalWords === 0;
+
+        const scale = document.createElement("div");
+        scale.className = "temp-scale";
+        const minSpan = document.createElement("span");
+        minSpan.textContent = totalWords > 0 ? "Top 1 most frequent" : "0 words";
+        const maxSpan = document.createElement("span");
+        maxSpan.textContent = "All " + totalWords + " words";
+        scale.append(minSpan, maxSpan);
+
+        // WHAT THIS DOES: Updates the top-N vocabulary table live as you drag, and re-tokenizes the sentence immediately if already tokenized.
+        slider.addEventListener("input", () => {
+          const kept = Number(slider.value);
+          applyVocabularyLimit(kept);
+          sliderLabel.textContent = "Words kept: " + state.vocabLimit + " of " + totalWords;
+
+          vocabTableContainer.replaceChildren(renderVocabularyTable());
+
+          applyTokenization(state.prompt);
+          if (state.tokenizedVisible) {
+            renderTokenizeOutput(tokenizeOutputContainer);
+          }
+        });
+
+        sliderBox.append(sliderHeader, slider, scale);
+        vocabTableContainer.appendChild(renderVocabularyTable());
+        stageVisualEl.append(sliderBox, vocabTableContainer);
+      }
+
+      // Tokenize controls inside Stage 2
+      const tokenizeSection = document.createElement("div");
+      tokenizeSection.className = "tokenize-section";
+
+      const tokenizeHeading = document.createElement("h3");
+      tokenizeHeading.textContent = "Tokenize your text";
+
+      const tokenizeLabel = document.createElement("label");
+      tokenizeLabel.className = "field-label";
+      tokenizeLabel.htmlFor = "tokenize-input";
+      tokenizeLabel.textContent = "Sentence to tokenize";
+
+      const tokenizeHint = document.createElement("p");
+      tokenizeHint.id = "tokenize-hint";
+      tokenizeHint.className = "field-hint";
+      tokenizeHint.textContent = 'Type a sentence (for example, "The zebra sat on the mat.") and click Tokenize.';
+
+      const tokenizeRow = document.createElement("div");
+      tokenizeRow.className = "input-row";
+
+      const tokenizeInput = document.createElement("input");
+      tokenizeInput.type = "text";
+      tokenizeInput.id = "tokenize-input";
+      tokenizeInput.className = "text-input";
+      tokenizeInput.value = state.prompt;
+      tokenizeInput.maxLength = 240;
+      tokenizeInput.setAttribute("enterkeyhint", "go");
+      tokenizeInput.setAttribute("aria-describedby", "tokenize-hint tokenize-error");
+
+      const tokenizeBtn = document.createElement("button");
+      tokenizeBtn.type = "button";
+      tokenizeBtn.id = "tokenize-btn";
+      tokenizeBtn.className = "btn btn-primary";
+      tokenizeBtn.textContent = "Tokenize";
+
+      const tokenizeError = document.createElement("p");
+      tokenizeError.id = "tokenize-error";
+      tokenizeError.className = "error-text";
+      tokenizeError.hidden = true;
+
+      // WHAT THIS DOES: Runs when you click Tokenize (or press Enter) to split the sentence into coloured chips and stats.
+      function handleTokenizeAction() {
+        const value = tokenizeInput.value.trim();
+        if (value.length === 0) {
+          tokenizeInput.setAttribute("aria-invalid", "true");
+          tokenizeError.textContent = "Please enter at least one word to tokenize.";
+          tokenizeError.hidden = false;
+          tokenizeInput.focus();
+          announce("Please enter at least one word to tokenize.");
+          return;
+        }
+
+        state.prompt = value;
+        promptInput.value = value;
+        applyTokenization(state.prompt);
+        state.probabilities = computeNextWordProbabilities(state.prompt, state.temperature);
+        state.sampledWord = sampleNextWord(state.probabilities);
+        state.tokenizedVisible = true;
+
+        renderTokenizeOutput(tokenizeOutputContainer);
+        announce("Tokenized into " + state.tokens.length + " tokens.");
+      }
+
+      tokenizeInput.addEventListener("input", () => {
+        if (tokenizeInput.value.trim().length > 0) {
+          tokenizeInput.removeAttribute("aria-invalid");
+          tokenizeError.textContent = "";
+          tokenizeError.hidden = true;
+        }
+      });
+
+      tokenizeInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.isComposing) {
+          event.preventDefault();
+          handleTokenizeAction();
+        }
+      });
+
+      tokenizeBtn.addEventListener("click", handleTokenizeAction);
+
+      tokenizeRow.append(tokenizeInput, tokenizeBtn);
+      renderTokenizeOutput(tokenizeOutputContainer);
+      tokenizeSection.append(
+        tokenizeHeading,
+        tokenizeLabel,
+        tokenizeHint,
+        tokenizeRow,
+        tokenizeError,
+        tokenizeOutputContainer
+      );
+
+      stageVisualEl.appendChild(tokenizeSection);
+    }
+
+    // WHAT THIS DOES: Draws the "Closest pairs" table under the 3D chart showing the top 5 most similar sentence pairs and their cosine similarity (3 decimals).
+    function renderClosestPairsTable(pairs, vectorDims, activeMode) {
+      const section = document.createElement("div");
+      section.className = "closest-pairs-section";
+
+      const heading = document.createElement("h3");
+      heading.textContent = "Closest pairs";
+      section.appendChild(heading);
+
+      const scrollWrap = document.createElement("div");
+      scrollWrap.className = "table-scroll";
+
+      const table = document.createElement("table");
+      table.className = "data-table";
+
+      const caption = document.createElement("caption");
+      const modeLabel = activeMode === "meaning" ? "meaning-based" : "spelling-based";
+      caption.textContent =
+        "Top 5 most similar sentence pairs using cosine similarity on the full " +
+        vectorDims + "-number " + modeLabel + " vectors.";
+      table.appendChild(caption);
+
+      const thead = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      ["Rank", "Sentence 1", "Sentence 2", "Cosine similarity"].forEach((label) => {
+        const th = document.createElement("th");
+        th.scope = "col";
+        th.textContent = label;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      pairs.forEach((pair, idx) => {
+        const tr = document.createElement("tr");
+
+        const thRank = document.createElement("th");
+        thRank.scope = "row";
+        thRank.className = "mono";
+        thRank.textContent = String(idx + 1);
+        tr.appendChild(thRank);
+
+        const tdA = document.createElement("td");
+        tdA.textContent = pair.sentenceA;
+        tr.appendChild(tdA);
+
+        const tdB = document.createElement("td");
+        tdB.textContent = pair.sentenceB;
+        tr.appendChild(tdB);
+
+        const tdScore = document.createElement("td");
+        tdScore.className = "mono";
+        tdScore.textContent = pair.score.toFixed(3);
+        tr.appendChild(tdScore);
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      scrollWrap.appendChild(table);
+      section.appendChild(scrollWrap);
+      return section;
+    }
+
+    // WHAT THIS DOES: Builds an accessible table of each sentence's 3D (x, y, z) coordinates as a text alternative to the 3D chart.
+    function renderCoordinatesTable(points, vectorDims) {
+      const details = document.createElement("details");
+      details.className = "teach-details";
+
+      const summary = document.createElement("summary");
+      summary.textContent = "View 3D coordinates table (accessible alternative)";
+      details.appendChild(summary);
+
+      const scrollWrap = document.createElement("div");
+      scrollWrap.className = "table-scroll";
+
+      const table = document.createElement("table");
+      table.className = "data-table";
+
+      const caption = document.createElement("caption");
+      caption.textContent =
+        "Each sentence's " + vectorDims + "-number vector (length 1) reduced to 3D (x, y, z)";
+      table.appendChild(caption);
+
+      const thead = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      ["#", "Sentence", vectorDims + "-D Length", "X", "Y", "Z"].forEach((label) => {
+        const th = document.createElement("th");
+        th.scope = "col";
+        th.textContent = label;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      points.forEach((pt, idx) => {
+        const tr = document.createElement("tr");
+
+        const thNum = document.createElement("th");
+        thNum.scope = "row";
+        thNum.className = "mono";
+        thNum.textContent = String(idx + 1);
+        tr.appendChild(thNum);
+
+        const tdSentence = document.createElement("td");
+        tdSentence.textContent = pt.sentence;
+        tr.appendChild(tdSentence);
+
+        const tdLen = document.createElement("td");
+        tdLen.className = "mono";
+        tdLen.textContent = pt.norm.toFixed(2);
+        tr.appendChild(tdLen);
+
+        [pt.x, pt.y, pt.z].forEach((coord) => {
+          const td = document.createElement("td");
+          td.className = "mono";
+          td.textContent = coord.toFixed(3);
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      scrollWrap.appendChild(table);
+      details.appendChild(scrollWrap);
+      return details;
+    }
+
+    // WHAT THIS DOES: Draws Stage 3 (Embeddings), letting you pick Spelling-based or Meaning-based mode, plot in 3D with Plotly.js, and view the Closest pairs table.
+    function renderStage3() {
+      const controls = document.createElement("div");
+      controls.className = "embed-controls";
+
+      // Mode selector using accessible radio buttons inside a fieldset
+      const modeFieldset = document.createElement("fieldset");
+      modeFieldset.className = "mode-fieldset";
+
+      const modeLegend = document.createElement("legend");
+      modeLegend.textContent = "Embedding mode";
+      modeFieldset.appendChild(modeLegend);
+
+      const modeOptions = document.createElement("div");
+      modeOptions.className = "mode-options";
+
+      const modeChoices = [
+        { id: "mode-spelling", value: "spelling", label: "Spelling-based (64 numbers, instant)" },
+        { id: "mode-meaning", value: "meaning", label: "Meaning-based (Xenova/all-MiniLM-L6-v2, 384 numbers)" }
+      ];
+
+      modeChoices.forEach((choice) => {
+        const wrap = document.createElement("span");
+        wrap.className = "mode-option";
+
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.id = choice.id;
+        radio.name = "embed-mode";
+        radio.value = choice.value;
+        radio.checked = state.embedMode === choice.value;
+        radio.disabled = state.embedLoading;
+        radio.addEventListener("change", () => {
+          if (radio.checked) {
+            state.embedMode = choice.value;
+          }
+        });
+
+        const radioLabel = document.createElement("label");
+        radioLabel.htmlFor = choice.id;
+        radioLabel.textContent = choice.label;
+
+        wrap.append(radio, radioLabel);
+        modeOptions.appendChild(wrap);
+      });
+
+      modeFieldset.appendChild(modeOptions);
+
+      const label = document.createElement("label");
+      label.className = "field-label";
+      label.htmlFor = "embed-sentences";
+      label.textContent = "Sentences to embed and plot (one per line, at least 4)";
+
+      const hint = document.createElement("p");
+      hint.id = "embed-sentences-hint";
+      hint.className = "field-hint";
+      hint.textContent = "Compare Spelling-based (3-letter counts) vs. Meaning-based (real neural embeddings via Transformers.js).";
+
+      const textarea = document.createElement("textarea");
+      textarea.id = "embed-sentences";
+      textarea.className = "training-input";
+      textarea.rows = 6;
+      textarea.value = state.embedSentences;
+      textarea.setAttribute("aria-describedby", "embed-sentences-hint embed-error");
+      if (state.embedErrorMessage) {
+        textarea.setAttribute("aria-invalid", "true");
+      }
+
+      const errorEl = document.createElement("p");
+      errorEl.id = "embed-error";
+      errorEl.className = "error-text";
+      errorEl.textContent = state.embedErrorMessage;
+      errorEl.hidden = !state.embedErrorMessage;
+
+      textarea.addEventListener("input", () => {
+        state.embedSentences = textarea.value;
+        const count = textarea.value
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0).length;
+        if (count >= 4 && state.embedErrorMessage) {
+          state.embedErrorMessage = "";
+          textarea.removeAttribute("aria-invalid");
+          errorEl.textContent = "";
+          errorEl.hidden = true;
+        }
+      });
+
+      const buttonRow = document.createElement("div");
+      buttonRow.className = "action-row";
+
+      const embedPlotBtn = document.createElement("button");
+      embedPlotBtn.type = "button";
+      embedPlotBtn.id = "embed-plot-btn";
+      embedPlotBtn.className = "btn btn-primary";
+      embedPlotBtn.textContent = state.embedLoading ? "Loading model..." : "Embed and plot";
+      embedPlotBtn.disabled = state.embedLoading;
+
+      // Download progress box (shown while Transformers.js downloads or runs the model)
+      const progressPanel = document.createElement("div");
+      progressPanel.id = "model-progress-box";
+      progressPanel.className = "progress-panel";
+      progressPanel.hidden = !state.embedLoading;
+
+      const progressLabel = document.createElement("label");
+      progressLabel.id = "model-progress-text";
+      progressLabel.htmlFor = "model-progress-bar";
+      progressLabel.className = "field-label";
+      progressLabel.textContent = "Preparing model...";
+
+      const progressBar = document.createElement("progress");
+      progressBar.id = "model-progress-bar";
+      progressBar.max = 100;
+      progressBar.value = 0;
+
+      progressPanel.append(progressLabel, progressBar);
+
+      embedPlotBtn.addEventListener("click", async () => {
+        state.embedSentences = textarea.value;
+        const sentences = state.embedSentences
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+
+        if (sentences.length < 4) {
+          state.embedErrorMessage =
+            "Please enter at least 4 sentences (one per line) before plotting in 3D. You currently have " +
+            sentences.length + ".";
+          state.embedFallbackMessage = "";
+          state.embedPlotVisible = false;
+          state.embedPoints = [];
+          state.embedClosestPairs = [];
+          renderActiveStage(false);
+          const refreshedInput = document.getElementById("embed-sentences");
+          if (refreshedInput) refreshedInput.focus();
+          announce(state.embedErrorMessage);
+          return;
+        }
+
+        state.embedErrorMessage = "";
+        state.embedFallbackMessage = "";
+
+        let vectors = [];
+        let activeMode = state.embedMode;
+
+        if (state.embedMode === "meaning") {
+          state.embedLoading = true;
+          embedPlotBtn.disabled = true;
+          embedPlotBtn.textContent = "Loading model...";
+          progressPanel.hidden = false;
+
+          const updateProgress = (statusText, percent) => {
+            const liveText = document.getElementById("model-progress-text");
+            const liveBar = document.getElementById("model-progress-bar");
+            if (liveText) liveText.textContent = statusText;
+            if (liveBar && typeof percent === "number") liveBar.value = percent;
+          };
+
+          try {
+            vectors = await embedSentencesMeaning(sentences, updateProgress);
+            activeMode = "meaning";
+          } catch (error) {
+            // Fall back automatically to spelling-based embeddings with the exact required message
+            state.embedFallbackMessage =
+              "Meaning mode needs the page served over http - using spelling-based instead";
+            vectors = sentences.map((sentence) => embedSentenceSpelling(sentence));
+            activeMode = "spelling";
+          } finally {
+            state.embedLoading = false;
+          }
+        } else {
+          vectors = sentences.map((sentence) => embedSentenceSpelling(sentence));
+          activeMode = "spelling";
+        }
+
+        const coords3D = reduceVectorsTo3D(vectors);
+        state.embedActiveMode = activeMode;
+        state.embedVectorDims = vectors[0] ? vectors[0].length : 64;
+        state.embedClosestPairs = findClosestPairs(sentences, vectors);
+        state.embedPoints = sentences.map((sentence, idx) => {
+          const vec = vectors[idx];
+          const norm = Math.sqrt(vec.reduce((sum, val) => sum + val * val, 0));
+          return {
+            sentence: sentence,
+            shortLabel: makeShortLabel(sentence, idx),
+            norm: norm,
+            x: coords3D[idx].x,
+            y: coords3D[idx].y,
+            z: coords3D[idx].z
+          };
+        });
+        state.embedPlotVisible = true;
+
+        if (state.currentStage === 3) {
+          renderActiveStage(false);
+          const refreshedBtn = document.getElementById("embed-plot-btn");
+          if (refreshedBtn) refreshedBtn.focus();
+        }
+
+        if (state.embedFallbackMessage) {
+          announce(state.embedFallbackMessage);
+        } else {
+          announce(
+            "Plotted " + state.embedPoints.length + " sentences in " + activeMode +
+            "-based mode and updated the Closest pairs table."
+          );
+        }
+      });
+
+      buttonRow.appendChild(embedPlotBtn);
+      controls.append(modeFieldset, label, hint, textarea, buttonRow, progressPanel, errorEl);
+      stageVisualEl.appendChild(controls);
+
+      if (state.embedFallbackMessage) {
+        const fallbackNote = document.createElement("p");
+        fallbackNote.id = "embed-fallback-note";
+        fallbackNote.className = "unknown-note";
+        fallbackNote.textContent = state.embedFallbackMessage;
+        stageVisualEl.appendChild(fallbackNote);
+      }
+
+      if (!state.embedPlotVisible) {
+        const waitingNote = document.createElement("p");
+        waitingNote.className = "detail-note";
+        waitingNote.textContent = 'Choose a mode and click "Embed and plot" to see the 3D chart and the 5 closest sentence pairs.';
+        stageVisualEl.appendChild(waitingNote);
+      } else {
+        const figure = document.createElement("figure");
+        figure.className = "plot-figure";
+
+        const plotDiv = document.createElement("div");
+        plotDiv.id = "embed-plot";
+        plotDiv.className = "plot-box";
+
+        const figcaption = document.createElement("figcaption");
+        figcaption.className = "field-hint";
+        figcaption.textContent =
+          "3D chart of " + state.embedPoints.length +
+          " sentences using " + (state.embedActiveMode === "meaning" ? "Meaning-based (384-D)" : "Spelling-based (64-D)") +
+          " embeddings. Hover for full sentence; drag to rotate.";
+
+        figure.append(plotDiv, figcaption);
+        stageVisualEl.appendChild(figure);
+
+        drawEmbedding3DChart(plotDiv, state.embedPoints, state.embedActiveMode);
+        stageVisualEl.appendChild(
+          renderClosestPairsTable(state.embedClosestPairs, state.embedVectorDims, state.embedActiveMode)
+        );
+        stageVisualEl.appendChild(renderCoordinatesTable(state.embedPoints, state.embedVectorDims));
+      }
+
+      // Collapsible preview of the current prompt's token vectors
+      const tokenDetails = document.createElement("details");
+      tokenDetails.className = "teach-details";
+      const tokenSummary = document.createElement("summary");
+      tokenSummary.textContent = "Preview current prompt's 4-number token vectors";
+      tokenDetails.appendChild(tokenSummary);
+
+      const scrollWrap = document.createElement("div");
+      scrollWrap.className = "table-scroll";
+
+      const table = document.createElement("table");
+      table.className = "data-table";
+
+      const caption = document.createElement("caption");
+      caption.textContent = "Each prompt token converted into a 4-number teaching vector (0.00 to 1.00)";
+      table.appendChild(caption);
+
+      const thead = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      ["Token", "ID", "Thing / Noun", "Action", "Grammar", "Tone"].forEach((colLabel) => {
+        const th = document.createElement("th");
+        th.scope = "col";
+        th.textContent = colLabel;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      state.tokens.forEach((tok) => {
+        const vec = getEmbeddingForToken(tok);
+        const tr = document.createElement("tr");
+
+        const tdToken = document.createElement("th");
+        tdToken.scope = "row";
+        tdToken.className = "mono";
+        tdToken.textContent = tok.text;
+        tr.appendChild(tdToken);
+
+        const tdId = document.createElement("td");
+        tdId.className = "mono";
+        tdId.textContent = "#" + tok.id;
+        tr.appendChild(tdId);
+
+        vec.forEach((num) => {
+          const td = document.createElement("td");
+          const numText = document.createElement("div");
+          numText.className = "mono";
+          numText.textContent = num.toFixed(2);
+
+          const track = document.createElement("div");
+          track.className = "bar-track";
+          const fill = document.createElement("div");
+          fill.className = "bar-fill";
+          fill.style.setProperty("--bar-pct", Math.round(num * 100) + "%");
+          track.appendChild(fill);
+
+          td.append(numText, track);
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      scrollWrap.appendChild(table);
+      tokenDetails.appendChild(scrollWrap);
+      stageVisualEl.appendChild(tokenDetails);
+    }
+
+    // WHAT THIS DOES: Draws Stage 4 (Self-Attention), letting you click any token to see how much it attends to earlier tokens.
+    function renderStage4() {
+      const promptLabel = document.createElement("p");
+      promptLabel.className = "field-hint";
+      promptLabel.textContent = "Click any token to inspect what earlier tokens it pays attention to:";
+      stageVisualEl.appendChild(promptLabel);
+
+      const chipList = document.createElement("ol");
+      chipList.className = "token-list";
+      chipList.setAttribute("role", "list");
+
+      state.tokens.forEach((tok, idx) => {
+        const li = document.createElement("li");
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "token-chip";
+        chip.style.setProperty("--token-hue", String(tok.hue));
+        chip.setAttribute("aria-pressed", String(idx === state.attentionFocusIndex));
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "token-text";
+        textSpan.textContent = tok.text;
+
+        const posSpan = document.createElement("span");
+        posSpan.className = "token-id";
+        posSpan.textContent = "Pos " + (idx + 1);
+
+        chip.append(textSpan, posSpan);
+        chip.addEventListener("click", () => {
+          state.attentionFocusIndex = idx;
+          renderActiveStage(false);
+          const refreshedChips = stageVisualEl.querySelectorAll(".token-chip");
+          if (refreshedChips[idx]) refreshedChips[idx].focus();
+        });
+
+        li.appendChild(chip);
+        chipList.appendChild(li);
+      });
+
+      stageVisualEl.appendChild(chipList);
+
+      const focusedToken = state.tokens[state.attentionFocusIndex];
+      const weights = getAttentionWeights(state.tokens, state.attentionFocusIndex);
+
+      const subHeading = document.createElement("h3");
+      subHeading.textContent = 'Where "' + focusedToken.text + '" looks for context:';
+      stageVisualEl.appendChild(subHeading);
+
+      const weightList = document.createElement("ol");
+      weightList.className = "attention-list";
+      weightList.setAttribute("role", "list");
+
+      weights.forEach((entry) => {
+        const li = document.createElement("li");
+        li.className = "attention-row";
+
+        const wordEl = document.createElement("span");
+        wordEl.className = "prob-word";
+        wordEl.textContent = entry.token.text + (entry.token.index === state.attentionFocusIndex ? " (self)" : "");
+
+        const track = document.createElement("div");
+        track.className = "bar-track";
+        const fill = document.createElement("div");
+        fill.className = "bar-fill";
+        fill.style.setProperty("--bar-pct", entry.percent + "%");
+        track.appendChild(fill);
+
+        const pctEl = document.createElement("span");
+        pctEl.className = "mono";
+        pctEl.textContent = entry.percent + "%";
+
+        li.append(wordEl, track, pctEl);
+        weightList.appendChild(li);
+      });
+
+      stageVisualEl.appendChild(weightList);
+    }
+
+    // WHAT THIS DOES: Draws Stage 5 (Probabilities) along with an interactive Temperature slider that reshapes the odds live.
+    function renderStage5() {
+      const tempBox = document.createElement("div");
+      tempBox.className = "temp-control";
+
+      const tempHeader = document.createElement("div");
+      tempHeader.className = "temp-header";
+
+      const tempLabel = document.createElement("label");
+      tempLabel.setAttribute("for", "temp-slider");
+      tempLabel.className = "field-label";
+      tempLabel.textContent = "Temperature (Creativity)";
+
+      const tempValueEl = document.createElement("span");
+      tempValueEl.id = "temp-value";
+      tempValueEl.className = "mono";
+      tempValueEl.textContent = state.temperature.toFixed(1);
+
+      tempHeader.append(tempLabel, tempValueEl);
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.id = "temp-slider";
+      slider.className = "range-input";
+      slider.min = "0.2";
+      slider.max = "1.5";
+      slider.step = "0.1";
+      slider.value = String(state.temperature);
+
+      const scale = document.createElement("div");
+      scale.className = "temp-scale";
+      const lowLabel = document.createElement("span");
+      lowLabel.textContent = "0.2 Focused / Predictable";
+      const highLabel = document.createElement("span");
+      highLabel.textContent = "1.5 Creative / Surprising";
+      scale.append(lowLabel, highLabel);
+
+      tempBox.append(tempHeader, slider, scale);
+      stageVisualEl.appendChild(tempBox);
+
+      const probList = document.createElement("ol");
+      probList.className = "prob-list";
+      probList.setAttribute("role", "list");
+
+      // WHAT THIS DOES: Helper inside Stage 5 that draws the candidate next-word probability bars.
+      function drawBars() {
+        probList.replaceChildren();
+        state.probabilities.forEach((item, index) => {
+          const li = document.createElement("li");
+          li.className = "prob-row";
+
+          const wordEl = document.createElement("span");
+          wordEl.className = "prob-word";
+          wordEl.textContent = '"' + item.word + '"' + (index === 0 ? " (Top)" : "");
+
+          const track = document.createElement("div");
+          track.className = "bar-track";
+          const fill = document.createElement("div");
+          fill.className = "bar-fill" + (index === 0 ? " is-top" : "");
+          fill.style.setProperty("--bar-pct", item.percent + "%");
+          track.appendChild(fill);
+
+          const pctEl = document.createElement("span");
+          pctEl.className = "mono";
+          pctEl.textContent = item.percent + "%";
+
+          li.append(wordEl, track, pctEl);
+          probList.appendChild(li);
+        });
+      }
+
+      drawBars();
+      stageVisualEl.appendChild(probList);
+
+      slider.addEventListener("input", () => {
+        state.temperature = Number(slider.value);
+        tempValueEl.textContent = state.temperature.toFixed(1);
+        state.probabilities = computeNextWordProbabilities(state.prompt, state.temperature);
+        state.sampledWord = sampleNextWord(state.probabilities);
+        drawBars();
+      });
+    }
+
+    // WHAT THIS DOES: Draws Stage 6 (Output), showing the chosen next word and buttons to re-sample or append it to your prompt.
+    function renderStage6() {
+      const preview = document.createElement("div");
+      preview.className = "output-preview";
+
+      const baseText = document.createTextNode(state.prompt);
+      const nextTokenBadge = document.createElement("span");
+      nextTokenBadge.className = "predicted-token";
+      nextTokenBadge.textContent = state.sampledWord;
+
+      preview.append(baseText, nextTokenBadge);
+      stageVisualEl.appendChild(preview);
+
+      const chosen = state.probabilities.find((item) => item.word === state.sampledWord) || state.probabilities[0];
+      const info = document.createElement("p");
+      info.className = "detail-note";
+      info.textContent =
+        'Picked "' + state.sampledWord + '" (chance: ' + chosen.percent + '% at temperature ' +
+        state.temperature.toFixed(1) + ').' + (state.statusNote ? " " + state.statusNote : "");
+      stageVisualEl.appendChild(info);
+
+      const actionRow = document.createElement("div");
+      actionRow.className = "action-row";
+
+      const resampleBtn = document.createElement("button");
+      resampleBtn.type = "button";
+      resampleBtn.id = "resample-btn";
+      resampleBtn.className = "btn btn-secondary";
+      resampleBtn.textContent = "Sample Another Word";
+      resampleBtn.addEventListener("click", () => {
+        state.sampledWord = sampleNextWord(state.probabilities);
+        state.statusNote = "Rolled the weighted probability dice again!";
+        renderActiveStage(false);
+        const refreshedBtn = document.getElementById("resample-btn");
+        if (refreshedBtn) refreshedBtn.focus();
+        announce('Sampled next word: ' + state.sampledWord);
+      });
+
+      const appendBtn = document.createElement("button");
+      appendBtn.type = "button";
+      appendBtn.className = "btn btn-primary";
+      appendBtn.textContent = "Add Word to Prompt & Run Again";
+      appendBtn.addEventListener("click", () => {
+        const updatedPrompt = (state.prompt + " " + state.sampledWord).trim();
+        promptInput.value = updatedPrompt;
+        runPipelineWithPrompt(updatedPrompt, 6, 'Added "' + state.sampledWord + '" and re-ran the pipeline!');
+      });
+
+      actionRow.append(resampleBtn, appendBtn);
+      stageVisualEl.appendChild(actionRow);
+    }
+
+    // WHAT THIS DOES: Updates the main Stage Explorer card with the title, explanation, and interactive visual for the current stage.
+    function renderActiveStage(shouldFocusHeading) {
+      const stage = STAGES[state.currentStage - 1];
+
+      stageKickerEl.textContent = "Stage " + stage.id + " of " + STAGES.length;
+      stageTitleEl.textContent = stage.title;
+      stageSummaryEl.textContent = stage.summary;
+      stageWhyEl.textContent = stage.why;
+      stageDetailsEl.open = false;
+
+      stageVisualEl.replaceChildren();
+
+      if (state.currentStage === 1) renderStage1();
+      if (state.currentStage === 2) renderStage2();
+      if (state.currentStage === 3) renderStage3();
+      if (state.currentStage === 4) renderStage4();
+      if (state.currentStage === 5) renderStage5();
+      if (state.currentStage === 6) renderStage6();
+
+      prevBtn.disabled = state.currentStage === 1;
+      nextBtn.disabled = state.currentStage === STAGES.length;
+
+      if (shouldFocusHeading) {
+        stageTitleEl.focus();
+      }
+    }
+
+    // WHAT THIS DOES: Moves the explorer to a specific stage number (1 to 6) and redraws the stepper and stage panel.
+    function goToStage(stageNumber, shouldFocusHeading) {
+      const clamped = Math.max(1, Math.min(STAGES.length, stageNumber));
+      state.currentStage = clamped;
+      renderStageButtons();
+      renderActiveStage(shouldFocusHeading);
+      announce("Viewing " + STAGES[clamped - 1].title);
+    }
+
+    // WHAT THIS DOES: Recomputes tokens, attention focus, probabilities, and a sampled word whenever the prompt changes.
+    function runPipelineWithPrompt(newPrompt, targetStage, optionalNote) {
+      state.prompt = newPrompt.trim();
+      applyTokenization(state.prompt);
+      state.probabilities = computeNextWordProbabilities(state.prompt, state.temperature);
+      state.sampledWord = sampleNextWord(state.probabilities);
+      state.statusNote = optionalNote || "";
+
+      goToStage(targetStage, false);
+      announce("Pipeline updated for prompt: " + state.prompt);
+    }
+
+    // WHAT THIS DOES: Shows or clears the inline validation error message if the prompt input is empty.
+    function validatePromptField() {
+      const value = promptInput.value.trim();
+      if (value.length === 0) {
+        promptInput.setAttribute("aria-invalid", "true");
+        promptError.textContent = "Please enter at least one word before running the pipeline.";
+        promptError.hidden = false;
+        return false;
+      }
+      promptInput.removeAttribute("aria-invalid");
+      promptError.textContent = "";
+      promptError.hidden = true;
+      return true;
+    }
+
+    // WHAT THIS DOES: Stops Auto-Play mode if it is currently running and resets the button text.
+    function stopAutoPlay() {
+      if (state.autoPlayTimer !== null) {
+        window.clearInterval(state.autoPlayTimer);
+        state.autoPlayTimer = null;
+      }
+      autoplayBtn.textContent = "Auto-Play All Stages";
+      autoplayBtn.setAttribute("aria-pressed", "false");
+    }
+
+    // WHAT THIS DOES: Turns Auto-Play on or off so the page can automatically step through Stages 1 to 6 every 2.2 seconds.
+    function toggleAutoPlay() {
+      if (state.autoPlayTimer !== null) {
+        stopAutoPlay();
+        announce("Auto-Play stopped.");
+        return;
+      }
+
+      if (state.currentStage === STAGES.length) {
+        goToStage(1, false);
+      }
+
+      autoplayBtn.textContent = "Stop Auto-Play";
+      autoplayBtn.setAttribute("aria-pressed", "true");
+      announce("Auto-Play started.");
+
+      state.autoPlayTimer = window.setInterval(() => {
+        if (state.currentStage < STAGES.length) {
+          goToStage(state.currentStage + 1, false);
+        } else {
+          stopAutoPlay();
+          announce("Auto-Play finished at Stage 6.");
+        }
+      }, 2200);
+    }
+
+    // WHAT THIS DOES: Connects the form, preset buttons, navigation buttons, and Auto-Play toggle to their actions.
+    promptForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      stopAutoPlay();
+
+      if (!validatePromptField()) {
+        promptInput.focus();
+        announce("Please enter at least one word before running the pipeline.");
+        return;
+      }
+
+      runPipelineWithPrompt(promptInput.value, 1, "");
+    });
+
+    promptInput.addEventListener("input", () => {
+      if (promptInput.value.trim().length > 0) {
+        promptInput.removeAttribute("aria-invalid");
+        promptError.textContent = "";
+        promptError.hidden = true;
+        state.prompt = promptInput.value.trim();
+        const tokenizeField = document.getElementById("tokenize-input");
+        if (tokenizeField) tokenizeField.value = promptInput.value;
+      }
+    });
+
+    promptInput.addEventListener("blur", () => {
+      validatePromptField();
+    });
+
+    presetButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        stopAutoPlay();
+        const presetText = button.getAttribute("data-preset") || "";
+        promptInput.value = presetText;
+        validatePromptField();
+        runPipelineWithPrompt(presetText, 1, "");
+      });
+    });
+
+    prevBtn.addEventListener("click", () => {
+      stopAutoPlay();
+      goToStage(state.currentStage - 1, true);
+    });
+
+    nextBtn.addEventListener("click", () => {
+      stopAutoPlay();
+      goToStage(state.currentStage + 1, true);
+    });
+
+    autoplayBtn.addEventListener("click", toggleAutoPlay);
+
+    // WHAT THIS DOES: Runs the pipeline once when the page first loads so you see a working demo right away.
+    runPipelineWithPrompt(state.prompt, 1, "");
+  </script>
+</body>
+</html>
