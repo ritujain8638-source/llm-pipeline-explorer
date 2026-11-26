@@ -24,7 +24,7 @@ Enter any custom prompt or choose from the built-in presets, then step forward/b
 ## Run Locally
 
 ```bash
-git clone https://github.com/ritujain8638-source/llm-pipeline-explorer.git
+git clone https://github.com/samyak-jain-dev/llm-pipeline-explorer.git
 cd llm-pipeline-explorer
 ```
 
